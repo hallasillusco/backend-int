@@ -17,6 +17,10 @@ use Illuminate\Http\Request;
 use App\Models\DetalleIngreso;
 use App\Models\ProductoSucursal;
 use Luecano\NumeroALetras\NumeroALetras;
+use App\Exports\VentasPrediccionExport;
+use Maatwebsite\Excel\Facades\Excel;
+
+
 
 class ReporteController extends Controller
 {
@@ -395,4 +399,100 @@ class ReporteController extends Controller
         ];
         return response()->json($data, 200);
     }
+
+public function getDatosPrediccion()
+{
+    // Obtener ventas reales agrupadas por mes usando fecha_registro
+    $ventas = DB::table('ventas')
+        ->select(
+            DB::raw('MONTH(fecha_registro) as mes'),
+            DB::raw('SUM(total) as total')
+        )
+        ->where('estado', 'VENTA') // asegura que solo se usen ventas válidas
+        ->groupBy(DB::raw('MONTH(fecha_registro)'))
+        ->orderBy(DB::raw('MONTH(fecha_registro)'))
+        ->get();
+
+    // Inicializar arrays para ventas reales y predichas
+    $reales = [];
+    $predichos = [];
+    $labels = [];
+
+    // Mapeo de números de mes a nombre corto
+    $meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+    foreach ($ventas as $venta) {
+        $reales[] = (float) $venta->total;
+        $predichos[] = round($venta->total * 1.1, 2); // Ejemplo: aumento del 10%
+        $labels[] = $meses[$venta->mes - 1];
+    }
+
+    return response()->json([
+        'labels' => $labels,
+        'reales' => $reales,
+        'predichos' => $predichos
+    ], 200);
+}
+
+
+private function predecirVentas($reales)
+{
+    $n = count($reales);
+    $predichos = [];
+
+    if ($n < 2) {
+        // No hay suficientes datos
+        return array_fill(0, $n, 0);
+    }
+
+    for ($i = 1; $i < $n; $i++) {
+        // Promedio entre mes actual y anterior
+        $predichos[] = round(($reales[$i] + $reales[$i - 1]) / 2, 2);
+    }
+
+    // Para el primer mes, usamos su propio valor como predicción
+    array_unshift($predichos, $reales[0]);
+
+    return $predichos;
+}
+
+public function exportarVentasPrediccion()
+{
+    return Excel::download(new VentasPrediccionExport, 'ventas_mensuales_prediccion.xlsx');
+}
+
+public function getComparativaMensual()
+{
+    $ventas = DB::table('ventas')
+        ->select(
+            DB::raw('MONTH(fecha_registro) as mes'),
+            DB::raw('YEAR(fecha_registro) as anio'),
+            DB::raw('SUM(total) as total')
+        )
+        ->whereBetween('fecha_registro', [
+            now()->subMonths(1)->startOfMonth(),
+            now()->endOfMonth()
+        ])
+        ->groupBy('anio', 'mes')
+        ->orderBy('anio', 'desc')
+        ->orderBy('mes', 'desc')
+        ->get();
+
+    $data = [
+        'labels' => [],
+        'totales' => []
+    ];
+
+    foreach ($ventas as $v) {
+        $nombreMes = \Carbon\Carbon::create()->month($v->mes)->locale('es')->monthName;
+        $data['labels'][] = ucfirst($nombreMes) . ' ' . $v->anio;
+        $data['totales'][] = $v->total;
+    }
+
+    return response()->json($data);
+}
+
+
+
+
 }
