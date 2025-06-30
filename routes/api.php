@@ -51,9 +51,9 @@ Route::post('token', [AuthController::class, 'login'])->name('api.login');
 
 Route::get('/reportes/getDatosPrediccion', [ReporteController::class, 'getDatosPrediccion']);
 Route::get('reportes/datos', [ReporteController::class, 'datos']);
-Route::get('reportes/masvendidos', [ReporteController::class, 'masvendidos']);
+Route::get('/reportes/getDatosMasVendidos', [ReporteController::class, 'getDatosMasVendidos']);
 
-Route::get('/reportes/getComparativaMensual', [ReporteController::class, 'getComparativaMensual']); // ✅ NUEVA RUTA
+Route::get('/reportes/getDatosComparativaMensual', [ReporteController::class, 'getDatosComparativaMensual']); // ✅ NUEVA RUTA
 
 
 Route::get('reportes/agotados', [ReporteController::class, 'agotados']);

@@ -1,0 +1,27 @@
+[
+  {
+    "mes": "2025-05",
+    "ventas": 380.5,
+    "ventas_previstas": null
+  },
+  {
+    "mes": "2025-06",
+    "ventas": 453.74,
+    "ventas_previstas": null
+  },
+  {
+    "mes": "2025-07",
+    "ventas": null,
+    "ventas_previstas": 526.98
+  },
+  {
+    "mes": "2025-08",
+    "ventas": null,
+    "ventas_previstas": 600.22
+  },
+  {
+    "mes": "2025-09",
+    "ventas": null,
+    "ventas_previstas": 673.46
+  }
+]

@@ -294,7 +294,7 @@ class ReporteController extends Controller
         return response()->json($data, 200);
     }
 
-    public function masvendidos() {
+   public function getDatosMasVendidos(){
         // Obtener las medidas del paciente ordenadas por fecha
         $prod = Producto::habilitado()->get();
         foreach ($prod as $key => $value) {
@@ -400,39 +400,36 @@ class ReporteController extends Controller
         return response()->json($data, 200);
     }
 
+
 public function getDatosPrediccion()
 {
-    // Obtener ventas reales agrupadas por mes usando fecha_registro
-    $ventas = DB::table('ventas')
-        ->select(
-            DB::raw('MONTH(fecha_registro) as mes'),
-            DB::raw('SUM(total) as total')
-        )
-        ->where('estado', 'VENTA') // asegura que solo se usen ventas válidas
-        ->groupBy(DB::raw('MONTH(fecha_registro)'))
-        ->orderBy(DB::raw('MONTH(fecha_registro)'))
-        ->get();
+    $rutaJson = storage_path('prediccion/resultados.json');
 
-    // Inicializar arrays para ventas reales y predichas
+    if (!file_exists($rutaJson)) {
+        return response()->json(['error' => 'Archivo de predicción no encontrado'], 404);
+    }
+
+    $contenido = file_get_contents($rutaJson);
+    $datos = json_decode($contenido, true);
+
+    $labels = [];
     $reales = [];
     $predichos = [];
-    $labels = [];
 
-    // Mapeo de números de mes a nombre corto
-    $meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-
-    foreach ($ventas as $venta) {
-        $reales[] = (float) $venta->total;
-        $predichos[] = round($venta->total * 1.1, 2); // Ejemplo: aumento del 10%
-        $labels[] = $meses[$venta->mes - 1];
+    foreach ($datos as $fila) {
+        $labels[] = \Carbon\Carbon::parse($fila['mes'])->locale('es')->translatedFormat('F');
+        $reales[] = $fila['ventas'] ?? null;
+        $predichos[] = $fila['ventas_previstas'] ?? null;
     }
 
     return response()->json([
         'labels' => $labels,
         'reales' => $reales,
         'predichos' => $predichos
-    ], 200);
+    ]);
 }
+
+
 
 
 private function predecirVentas($reales)
@@ -461,7 +458,7 @@ public function exportarVentasPrediccion()
     return Excel::download(new VentasPrediccionExport, 'ventas_mensuales_prediccion.xlsx');
 }
 
-public function getComparativaMensual()
+public function getDatosComparativaMensual()
 {
     $ventas = DB::table('ventas')
         ->select(
