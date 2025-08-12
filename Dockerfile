@@ -1,7 +1,9 @@
-# PHP 8.2 CLI
 FROM php:8.2-cli
 
-# Paquetes para extensiones PHP necesarias (Laravel, Excel, Dompdf, Barcode)
+# Evita advertencias de Composer por ejecutarse como root
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
+# Paquetes y extensiones necesarias
 RUN apt-get update && apt-get install -y \
     git unzip libzip-dev libonig-dev libxml2-dev \
     libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
@@ -9,28 +11,27 @@ RUN apt-get update && apt-get install -y \
  && docker-php-ext-install pdo_mysql mbstring zip bcmath gd xml \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Composer desde imagen oficial
+# Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# App
 WORKDIR /app
 
-# Instala deps con mejor caché
+# 1) Instala deps SIN scripts (aún no existe artisan)
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+RUN composer install --no-dev --no-interaction --prefer-dist --no-scripts
 
-# Copia el resto del código
+# 2) Copia el resto del código (ya existe artisan)
 COPY . .
 
-# Optimiza (si algo falla, que no rompa el build)
-RUN php artisan optimize:clear || true \
+# 3) Re-ejecuta composer con scripts y optimiza
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist \
+ && php artisan optimize:clear || true \
  && php artisan storage:link || true \
- && php artisan config:cache \
+ && php artisan config:cache || true \
  && php artisan route:cache || true \
  && php artisan view:cache || true
 
-# Render usa $PORT; exponemos 8080 por defecto
 EXPOSE 8080
 
-# Escribimos el CA de MySQL desde env y levantamos Laravel con PHP server
+# Escribe el CA y levanta Laravel
 CMD bash -lc 'printf "%s" "$MYSQL_SSL_CA" > /tmp/mysql-ca.pem; php -d variables_order=EGPCS -S 0.0.0.0:${PORT:-8080} -t public public/index.php'
