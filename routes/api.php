@@ -29,33 +29,30 @@ use App\Http\Controllers\{
 };
 use App\Http\Controllers\Api\AuthController;
 
-
+// 🔐 RUTAS EXCLUSIVAS PARA ADMINISTRADOR
 Route::middleware(['auth:api', 'rol:Administrador'])->group(function () {
-    Route::get('/usuarios', [UsuarioController::class, 'index']);
-    // Agrega más rutas exclusivas
+    Route::get('/usuarios', [UserController::class, 'index']);
+    Route::apiResource('users', UserController::class);
 });
 
+// 🔐 RUTAS PARA ROL ALMACÉN
 Route::middleware(['auth:api', 'rol:Almacén'])->group(function () {
     Route::get('/productos', [ProductoController::class, 'index']);
 });
 
+// 🔐 RUTAS PARA ROL VENDEDOR
 Route::middleware(['auth:api', 'rol:Vendedor'])->group(function () {
     Route::get('/ventas', [VentaController::class, 'index']);
 });
 
-
-
-
-
+// 🔑 LOGIN
 Route::post('token', [AuthController::class, 'login'])->name('api.login');
 
+// 📊 REPORTES
 Route::get('/reportes/getDatosPrediccion', [ReporteController::class, 'getDatosPrediccion']);
 Route::get('reportes/datos', [ReporteController::class, 'datos']);
 Route::get('/reportes/getDatosMasVendidos', [ReporteController::class, 'getDatosMasVendidos']);
-
-Route::get('/reportes/getDatosComparativaMensual', [ReporteController::class, 'getDatosComparativaMensual']); // ✅ NUEVA RUTA
-
-
+Route::get('/reportes/getDatosComparativaMensual', [ReporteController::class, 'getDatosComparativaMensual']);
 Route::get('reportes/agotados', [ReporteController::class, 'agotados']);
 Route::get('reportes/graficaventas', [ReporteController::class, 'graficaventas']);
 Route::get('reportes/graficacategorias', [ReporteController::class, 'graficacategorias']);
@@ -67,6 +64,14 @@ Route::get('ingresos/pdf/{id}', [ReporteController::class, 'ingresoPdf']);
 Route::get('proformas/pdf/{id}', [ReporteController::class, 'proformaPdf']);
 Route::get('ventas/pdf/{id}', [ReporteController::class, 'ventaPdf']);
 
+Route::get('/reporte/ventas/diario', [App\Http\Controllers\ReporteController::class, 'reporteDiario']);
+
+
+
+
+
+
+// 🌐 SITIO WEB (Público)
 Route::post('web/pedido', [WebController::class, 'pedido']);
 Route::post('web/pedido/subida', [WebController::class, 'subida']);
 Route::get('web/pedido', [WebController::class, 'pedidobuscar']);
@@ -85,22 +90,22 @@ Route::get('web/categorias/destacados', [WebController::class, 'catdestacados'])
 Route::get('web/categorias', [WebController::class, 'categorias']);
 Route::get('web/marcas', [WebController::class, 'marcas']);
 
-Route::get('borrar', [ReporteController::class, 'borrar']);
+// 📥 IMPORTACIONES
 Route::post('/excel/producto', [\App\Http\Controllers\ExcelImportProductoController::class, 'importProducto']);
 
+// 🔎 UTILIDADES
 Route::get('clientes/buscar', [ClienteController::class, 'buscar']);
 Route::get('users/roles', [UserController::class, 'roles']);
 Route::post('chatbot', [ChatbotController::class, 'handleRequest']);
-
 Route::get('banners/habilitados', [BannerController::class, 'habilitados']);
 Route::get('banners/habilitar/{id}', [BannerController::class, 'habilitar']);
+Route::get('borrar', [ReporteController::class, 'borrar']);
 
-Route::options('/{any}', function () {
-    return response()->json([], 204);
-})->where('any', '.*');
-
-Route::group(['middleware' => 'auth:api'], function () {
+// ✅ RUTAS AUTENTICADAS GENERALES
+Route::middleware(['auth:api'])->group(function () {
     Route::get('logout', [AuthController::class, 'logout']);
+    
+    // Habilitaciones
     Route::get('users/habilitar/{id}', [UserController::class, 'habilitar']);
     Route::get('categorias/habilitados', [CategoriaController::class, 'habilitados']);
     Route::get('categorias/habilitar/{id}', [CategoriaController::class, 'habilitar']);
@@ -138,8 +143,8 @@ Route::group(['middleware' => 'auth:api'], function () {
     Route::get('tipoclientes/habilitados', [TipoClienteController::class, 'habilitados']);
     Route::get('tipoclientes/habilitar/{id}', [TipoClienteController::class, 'habilitar']);
 
+    // Otros recursos
     Route::apiResources([
-        'users' => UserController::class,
         'banners' => BannerController::class,
         'tipos' => TipoCategoriaController::class,
         'categorias' => CategoriaController::class,
@@ -161,3 +166,18 @@ Route::group(['middleware' => 'auth:api'], function () {
         'accesos' => AccesoController::class
     ]);
 });
+
+
+Route::match(['GET','HEAD'], '/health', function () {
+    return response()->json([
+        'ok'   => true,
+        'time' => now(),
+        'app'  => config('app.name'),
+        'env'  => config('app.env'),
+    ]);
+});
+
+// 🧩 Respuesta rápida para CORS y opciones
+Route::options('/{any}', function () {
+    return response()->json([], 204);
+})->where('any', '.*');
